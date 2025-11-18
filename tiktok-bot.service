@@ -1,0 +1,27 @@
+[Unit]
+Description=Telegram TikTok Downloader Bot
+Documentation=https://github.com/yourusername/telegram-tiktok-downloader
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/telegram-tiktok-downloader
+ExecStart=/usr/bin/node /path/to/telegram-tiktok-downloader/bot.js
+Restart=always
+RestartSec=10
+StandardOutput=append:/path/to/telegram-tiktok-downloader/logs/bot.log
+StandardError=append:/path/to/telegram-tiktok-downloader/logs/error.log
+
+# Environment variables
+Environment=NODE_ENV=production
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits (optional)
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
