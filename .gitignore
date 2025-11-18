@@ -37,3 +37,9 @@ tmp/
 
 # System files
 tiktok-bot-configured.service
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+analytics.db
