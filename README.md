@@ -1,17 +1,30 @@
 # 🎬 Telegram TikTok Video Downloader Bot
 
-A powerful Telegram bot that allows users to download TikTok videos directly to their devices. Simply send a TikTok link to the bot, and it will return a direct download URL that works on any device!
+A powerful multi-platform Telegram bot that downloads videos from TikTok, Instagram, YouTube, Twitter/X, and 10+ other platforms. Videos are sent directly to Telegram with smart caching, queue management, and comprehensive analytics!
 
 ## ✨ Features
 
-- 🚀 **Fast & Easy**: Just send a TikTok link, get a download link instantly
-- 📱 **Universal**: Works on all devices (phones, tablets, computers)
-- 🔗 **Direct Downloads**: One-click download links
-- 🔄 **Auto-Start**: Runs automatically on server boot
-- 🧹 **Auto-Cleanup**: Automatically removes old downloaded files
-- 💾 **Self-Hosted**: Complete control over your data
-- 🛡️ **Reliable**: Auto-restart on crashes
-- 📊 **Statistics**: Track usage and cached videos
+### Core Features
+- 🎥 **Multi-Platform Support**: TikTok, Instagram, YouTube, Twitter/X, Facebook, Reddit, and 10+ more!
+- 📤 **Direct Telegram Delivery**: Videos sent directly to chat (no clicking links!)
+- 🚀 **Smart Caching**: Same video requested twice? Instant delivery from cache
+- ⚡ **Queue System**: Handles multiple requests efficiently (3 concurrent downloads)
+- 🔄 **Auto-Retry**: Failed downloads? Automatic retry with exponential backoff
+- 📊 **Live Progress**: Real-time download progress updates
+
+### Performance & Reliability
+- 🛡️ **Rate Limiting**: Prevents abuse (1 request per minute per user)
+- 💾 **Auto Storage Management**: Files deleted after sending to save space
+- 🔄 **Auto-Start**: Runs on boot, restarts on crashes
+- ⏱️ **Queue Management**: Smart concurrent download handling
+- 🧹 **Auto-Cleanup**: Removes old files automatically
+
+### Analytics & Monitoring
+- 📊 **Analytics Dashboard**: Beautiful admin panel on port 5000
+- 📈 **Real-Time Stats**: Total downloads, success rate, platform breakdown
+- 👥 **User Tracking**: Monitor usage patterns and top users
+- 💾 **Data Export**: Export analytics to CSV/JSON
+- 🎯 **Cache Hit Rate**: Track bandwidth savings
 
 ## 📋 Table of Contents
 
@@ -281,13 +294,80 @@ pm2 startup
 5. **Click the download link** the bot sends back
 6. **Save the video** to your device
 
-### Supported Link Formats
+### Supported Platforms & Link Formats
 
+**Supported Platforms:**
+- **TikTok**: `tiktok.com`, `vm.tiktok.com`, `vt.tiktok.com`
+- **Instagram**: Reels, Posts, Stories, IGTV
+- **YouTube**: Videos, Shorts
+- **Twitter/X**: Video tweets
+- **Facebook**: Videos, Watch
+- **Reddit**: Video posts
+- **And 10+ more**: Vimeo, Dailymotion, Twitch, Pinterest, LinkedIn, etc.
+
+**Example Links:**
 - `https://www.tiktok.com/@username/video/1234567890`
-- `https://vm.tiktok.com/ABC123/`
-- `https://vt.tiktok.com/XYZ789/`
-- Mobile share links
-- Short links
+- `https://www.instagram.com/reel/ABC123/`
+- `https://youtube.com/shorts/XYZ789`
+- `https://twitter.com/user/status/123456789`
+- Any other supported platform URL!
+
+## 📊 Admin Panel
+
+### Accessing the Dashboard
+
+The bot includes a comprehensive analytics dashboard accessible at:
+```
+http://your-server-ip:5000
+```
+
+### Dashboard Features
+
+**Real-Time Statistics:**
+- Total downloads (all time)
+- Success/failure rates
+- Unique user count
+- Cache hit rate percentage
+- Average download time
+- Total bandwidth used
+
+**Platform Analytics:**
+- Breakdown by platform (TikTok, Instagram, YouTube, etc.)
+- Downloads per platform
+- Success rates by platform
+
+**Recent Activity:**
+- Last 50 downloads with details
+- User information (username, ID)
+- Download status and errors
+- File sizes and processing times
+
+**Historical Data:**
+- Last 30 days of activity
+- Daily download counts
+- Success rate trends
+- Visual charts and graphs
+
+**Data Export:**
+- Export all data to JSON format
+- Export all data to CSV format
+- Includes: timestamps, users, URLs, platforms, file sizes, success status
+
+### Admin Panel Configuration
+
+Change the admin port in `.env`:
+```env
+ADMIN_PORT=5000  # Change to your preferred port
+```
+
+To secure the admin panel behind a reverse proxy:
+```nginx
+location /admin {
+    proxy_pass http://localhost:5000;
+    auth_basic "Admin Area";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+}
+```
 
 ## 🔧 Managing the Bot
 
@@ -421,9 +501,10 @@ npm run dev
    sudo ufw status
    ```
 
-4. **Make sure port is open:**
+4. **Make sure ports are open:**
    ```bash
-   sudo ufw allow 3000/tcp
+   sudo ufw allow 3000/tcp  # Web server
+   sudo ufw allow 5000/tcp  # Admin panel
    sudo ufw reload
    ```
 
@@ -525,21 +606,65 @@ For production use, it's recommended to use HTTPS:
    sudo systemctl restart tiktok-bot
    ```
 
-### Adjusting File Cleanup
+### Performance Tuning
 
-Edit `.env` to change cleanup behavior:
+Edit `.env` to optimize performance:
 
 ```env
-# Keep files for 12 hours instead of 24
-MAX_FILE_AGE_HOURS=12
+# Concurrent downloads (default: 3)
+# Increase for better throughput (requires more CPU/RAM)
+MAX_CONCURRENT_DOWNLOADS=5
 
-# Check every 30 minutes instead of 60
+# Rate limiting (default: 1 minute)
+# Increase to prevent abuse, decrease for power users
+RATE_LIMIT_MINUTES=2
+
+# Retry attempts (default: 3)
+# Increase for unreliable networks
+MAX_RETRIES=5
+
+# File cleanup
+MAX_FILE_AGE_HOURS=12
 CLEANUP_INTERVAL_MINUTES=30
 ```
 
 Restart bot after changes:
 ```bash
 sudo systemctl restart tiktok-bot
+```
+
+### Monitoring Performance
+
+Check queue and cache performance:
+```bash
+# Check health endpoint
+curl http://localhost:3000/health
+
+# View admin dashboard for detailed metrics
+open http://localhost:5000
+```
+
+### Database Management
+
+The SQLite database is stored in `analytics.db`. To backup:
+```bash
+# Backup database
+cp analytics.db analytics-backup-$(date +%Y%m%d).db
+
+# Check database size
+du -h analytics.db
+```
+
+To reset analytics (careful!):
+```bash
+# Stop the bot first
+sudo systemctl stop tiktok-bot
+
+# Remove database
+rm analytics.db
+
+# Start bot (will create new database)
+sudo systemctl start tiktok-bot
 ```
 
 ## 🏗️ Architecture
@@ -675,23 +800,38 @@ sudo systemctl start fail2ban
 
 ## ❓ FAQ
 
-### Q: Does this work with private TikTok accounts?
-**A:** No, only public videos can be downloaded.
+### Q: What platforms are supported?
+**A:** TikTok, Instagram, YouTube (including Shorts), Twitter/X, Facebook, Reddit, Vimeo, Dailymotion, Twitch, Pinterest, LinkedIn, Tumblr, Bilibili, VK, and more! Any platform supported by yt-dlp works.
+
+### Q: Does this work with private accounts?
+**A:** No, only public videos can be downloaded. Private content requires authentication which this bot doesn't support.
 
 ### Q: What's the maximum video size?
-**A:** There's no hard limit, but very large files may timeout. Most TikTok videos are under 50MB.
+**A:** Telegram has a 50MB limit for bot file uploads. Larger files will be provided as download links instead.
+
+### Q: How does the caching work?
+**A:** When a video URL is downloaded, it's cached. If someone requests the same URL again, it's delivered instantly from cache without re-downloading. Cache is automatically managed.
+
+### Q: Why am I rate limited?
+**A:** To prevent abuse, each user can make 1 request per minute. This protects the server and prevents API bans from video platforms.
 
 ### Q: Can I download multiple videos at once?
-**A:** Yes! Send multiple links and the bot will process them sequentially.
+**A:** Yes! The bot uses a queue system and processes up to 3 downloads concurrently (configurable). Send multiple links and they'll be processed in order.
 
 ### Q: How much disk space do I need?
-**A:** Depends on usage. Start with 10GB free. The bot auto-deletes old files based on your `MAX_FILE_AGE_HOURS` setting.
+**A:** Not much! Files are automatically deleted after being sent to Telegram. The database file grows slowly (~1MB per 10,000 downloads). Start with 5GB free.
 
 ### Q: Can I use this on shared hosting?
-**A:** You need VPS/cloud hosting with SSH access and ability to run Node.js applications.
+**A:** You need VPS/cloud hosting with SSH access and ability to run Node.js applications and install yt-dlp.
 
 ### Q: Does this download without watermarks?
-**A:** yt-dlp attempts to get the best quality available. Some videos may still have watermarks depending on TikTok's API.
+**A:** yt-dlp attempts to get the best quality available. TikTok videos may have watermarks depending on the API response.
+
+### Q: How do I access the admin panel?
+**A:** Navigate to `http://your-server-ip:5000` in your browser. Make sure port 5000 is open in your firewall.
+
+### Q: Is the database secure?
+**A:** The database stores user IDs, usernames, and download logs. It doesn't store video content or personal messages. Keep your server secure and consider encrypting the database file for sensitive deployments.
 
 ### Q: How do I update the bot?
 **A:**
