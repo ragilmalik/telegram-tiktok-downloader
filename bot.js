@@ -24,12 +24,34 @@ const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '3');
 
 // Validate configuration
 if (!TELEGRAM_TOKEN) {
-  console.error('❌ ERROR: TELEGRAM_BOT_TOKEN is not set in .env file');
+  console.error('❌ CONFIGURATION ERROR: Telegram bot token is missing!');
+  console.error('');
+  console.error('Please follow these steps to fix this:');
+  console.error('1. Copy .env.example to .env: cp .env.example .env');
+  console.error('2. Edit .env file: nano .env');
+  console.error('3. Get your bot token from @BotFather on Telegram');
+  console.error('4. Set TELEGRAM_BOT_TOKEN=your_token_here in the .env file');
+  console.error('5. Save and restart the bot');
+  console.error('');
+  console.error('For help creating a bot, visit: https://t.me/BotFather');
   process.exit(1);
 }
 
-// Initialize bot
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+// Initialize bot with error handling
+let bot;
+try {
+  bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+} catch (error) {
+  console.error('❌ BOT INITIALIZATION ERROR: Failed to connect to Telegram');
+  console.error('');
+  console.error('Possible causes:');
+  console.error('1. Invalid bot token - Please check your TELEGRAM_BOT_TOKEN in .env file');
+  console.error('2. Network connectivity issues - Check your internet connection');
+  console.error('3. Telegram API is temporarily down - Try again later');
+  console.error('');
+  console.error('Error details:', error.message);
+  process.exit(1);
+}
 
 // Initialize download queue with concurrency limit
 const downloadQueue = new PQueue({ concurrency: MAX_CONCURRENT_DOWNLOADS });
@@ -40,8 +62,27 @@ const rateLimitMap = new Map();
 // In-memory cache map: urlHash -> { filename, timestamp, filePath }
 const cacheMap = new Map();
 
-// Initialize SQLite database
-const db = new Database(path.join(__dirname, 'analytics.db'));
+// Initialize SQLite database with error handling
+let db;
+try {
+  db = new Database(path.join(__dirname, 'analytics.db'));
+  console.log('✅ Database initialized successfully');
+} catch (error) {
+  console.error('❌ DATABASE ERROR: Failed to initialize SQLite database');
+  console.error('');
+  console.error('Possible causes:');
+  console.error('1. No write permission in the current directory');
+  console.error('2. Disk is full or out of inodes');
+  console.error('3. Database file is corrupted');
+  console.error('');
+  console.error('Solutions:');
+  console.error('- Check permissions: ls -la analytics.db');
+  console.error('- Check disk space: df -h');
+  console.error('- If corrupted, backup and delete: mv analytics.db analytics.db.backup');
+  console.error('');
+  console.error('Error details:', error.message);
+  process.exit(1);
+}
 
 // Create database schema
 db.exec(`
@@ -92,7 +133,13 @@ app.get('/health', (req, res) => {
 
 // Admin panel - serve static HTML
 adminApp.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+  const adminPath = path.join(__dirname, 'admin', 'index.html');
+  res.sendFile(adminPath, (err) => {
+    if (err) {
+      console.error('⚠️  Failed to serve admin panel:', err.message);
+      res.status(500).send('Failed to load admin panel. Please ensure the admin/index.html file exists and has proper read permissions.');
+    }
+  });
 });
 
 // Admin API - Get statistics
@@ -122,8 +169,17 @@ adminApp.get('/api/stats', (req, res) => {
     };
     res.json(stats);
   } catch (error) {
-    console.error('Stats error:', error);
-    res.status(500).json({ error: 'Failed to retrieve statistics' });
+    console.error('⚠️  ADMIN PANEL STATS ERROR: Failed to retrieve statistics from database');
+    console.error('');
+    console.error('Possible causes:');
+    console.error('1. Database is locked or corrupted');
+    console.error('2. Query timeout due to large dataset');
+    console.error('3. Missing database indexes');
+    console.error('');
+    console.error('Error details:', error.message);
+    res.status(500).json({
+      error: 'Failed to retrieve statistics from the database. The database might be locked, corrupted, or experiencing high load. Please try again in a moment.'
+    });
   }
 });
 
@@ -148,23 +204,91 @@ adminApp.get('/api/export/:format', (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename=downloads-export.csv');
       res.send(csv);
     } else {
-      res.status(400).json({ error: 'Invalid format. Use json or csv.' });
+      res.status(400).json({ error: 'Invalid export format. Please use either "json" or "csv".' });
     }
   } catch (error) {
     console.error('Export error:', error);
-    res.status(500).json({ error: 'Failed to export data' });
+    res.status(500).json({ error: 'Failed to export data. Please try again later or contact support if the issue persists.' });
   }
 });
 
-// Start servers
-app.listen(WEB_SERVER_PORT, () => {
-  console.log(`✅ Web server running on port ${WEB_SERVER_PORT}`);
-  console.log(`✅ Public URL: ${PUBLIC_URL || 'Not set'}`);
+// Admin API - Delete records
+adminApp.post('/api/delete', (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid request. Please provide an array of record IDs to delete.'
+      });
+    }
+
+    // Validate that all IDs are numbers
+    if (!ids.every(id => Number.isInteger(id))) {
+      return res.status(400).json({
+        error: 'Invalid record IDs. All IDs must be integers.'
+      });
+    }
+
+    // Delete records
+    const placeholders = ids.map(() => '?').join(',');
+    const deleteStmt = db.prepare(`DELETE FROM downloads WHERE id IN (${placeholders})`);
+    const result = deleteStmt.run(...ids);
+
+    res.json({
+      success: true,
+      deleted: result.changes,
+      message: `Successfully deleted ${result.changes} record(s).`
+    });
+
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({
+      error: 'Failed to delete records. The database might be locked or the records may have already been deleted.'
+    });
+  }
 });
 
-adminApp.listen(ADMIN_PORT, () => {
+// Start servers with error handling
+const webServer = app.listen(WEB_SERVER_PORT, () => {
+  console.log(`✅ Web server running on port ${WEB_SERVER_PORT}`);
+  console.log(`✅ Public URL: ${PUBLIC_URL || 'Not set (download links disabled)'}`);
+}).on('error', (error) => {
+  console.error('❌ WEB SERVER ERROR: Failed to start web server');
+  console.error('');
+  console.error('Possible causes:');
+  console.error(`1. Port ${WEB_SERVER_PORT} is already in use by another application`);
+  console.error('2. No permission to bind to this port (ports < 1024 require root)');
+  console.error('3. Firewall blocking the port');
+  console.error('');
+  console.error('Solutions:');
+  console.error('- Check what is using the port: sudo lsof -i :' + WEB_SERVER_PORT);
+  console.error('- Change PORT in .env file to a different port (e.g., 3001)');
+  console.error('- Stop the conflicting service');
+  console.error('- Use sudo if port is below 1024');
+  console.error('');
+  console.error('Error details:', error.message);
+  process.exit(1);
+});
+
+const adminServer = adminApp.listen(ADMIN_PORT, () => {
   console.log(`✅ Admin panel running on port ${ADMIN_PORT}`);
   console.log(`📊 Access admin panel at: http://localhost:${ADMIN_PORT}`);
+}).on('error', (error) => {
+  console.error('❌ ADMIN SERVER ERROR: Failed to start admin panel server');
+  console.error('');
+  console.error('Possible causes:');
+  console.error(`1. Port ${ADMIN_PORT} is already in use by another application`);
+  console.error('2. No permission to bind to this port');
+  console.error('3. Firewall blocking the port');
+  console.error('');
+  console.error('Solutions:');
+  console.error('- Check what is using the port: sudo lsof -i :' + ADMIN_PORT);
+  console.error('- Change ADMIN_PORT in .env file to a different port (e.g., 5001)');
+  console.error('- Stop the conflicting service');
+  console.error('');
+  console.error('Error details:', error.message);
+  process.exit(1);
 });
 
 // Create required directories
@@ -174,7 +298,20 @@ adminApp.listen(ADMIN_PORT, () => {
     await fs.mkdir(path.join(__dirname, 'admin'), { recursive: true });
     console.log('✅ Directories ready');
   } catch (error) {
-    console.error('❌ Failed to create directories:', error);
+    console.error('❌ DIRECTORY CREATION ERROR: Failed to create required directories');
+    console.error('');
+    console.error('Possible causes:');
+    console.error('1. No write permission in the current directory');
+    console.error('2. Disk is full or out of inodes');
+    console.error('3. Parent directory does not exist');
+    console.error('');
+    console.error('Solutions:');
+    console.error('- Check permissions: ls -la');
+    console.error('- Check disk space: df -h');
+    console.error('- Verify you are in the correct directory: pwd');
+    console.error('- Ensure you have write access: touch test.txt && rm test.txt');
+    console.error('');
+    console.error('Error details:', error.message);
     process.exit(1);
   }
 })();
@@ -184,7 +321,29 @@ async function checkYtDlp() {
   return new Promise((resolve) => {
     exec('yt-dlp --version', (error) => {
       if (error) {
-        console.warn('⚠️  yt-dlp not found. Please install it: https://github.com/yt-dlp/yt-dlp#installation');
+        console.error('⚠️  WARNING: yt-dlp is not installed or not found in PATH');
+        console.error('');
+        console.error('This bot requires yt-dlp to download videos. Please install it:');
+        console.error('');
+        console.error('📦 Installation options:');
+        console.error('');
+        console.error('Option 1 - Using pip (recommended):');
+        console.error('  sudo pip3 install -U yt-dlp');
+        console.error('');
+        console.error('Option 2 - Download binary (Linux/macOS):');
+        console.error('  sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp');
+        console.error('  sudo chmod a+rx /usr/local/bin/yt-dlp');
+        console.error('');
+        console.error('Option 3 - Using package manager:');
+        console.error('  Ubuntu/Debian: sudo apt install yt-dlp');
+        console.error('  macOS: brew install yt-dlp');
+        console.error('');
+        console.error('After installation, verify by running: yt-dlp --version');
+        console.error('');
+        console.error('For more information: https://github.com/yt-dlp/yt-dlp#installation');
+        console.error('');
+        console.error('⚠️  The bot will continue running but will fail to download videos until yt-dlp is installed.');
+        console.error('');
         resolve(false);
       } else {
         console.log('✅ yt-dlp is available');
@@ -297,6 +456,7 @@ async function downloadVideo(url, chatId, statusMessageId, attempt = 1) {
       };
     } catch (error) {
       // File doesn't exist, remove from cache
+      console.log(`📦 Cache entry invalid for ${url.substring(0, 50)}... (file was deleted), re-downloading`);
       cacheMap.delete(urlHash);
     }
   }
@@ -374,7 +534,24 @@ async function downloadVideo(url, chatId, statusMessageId, attempt = 1) {
             }
           }, backoffTime);
         } else {
-          reject(new Error('Failed to download video after multiple attempts. The URL might be invalid or the video is unavailable.'));
+          // Provide detailed error message based on common issues
+          let errorMessage = 'Failed to download video after 3 attempts. ';
+
+          if (errorOutput.includes('HTTP Error 403') || errorOutput.includes('Forbidden')) {
+            errorMessage += 'The video is private or geo-restricted. Please check if the video is publicly accessible.';
+          } else if (errorOutput.includes('HTTP Error 404') || errorOutput.includes('Not Found')) {
+            errorMessage += 'The video was not found. The link may be broken or the video may have been deleted.';
+          } else if (errorOutput.includes('Unable to extract')) {
+            errorMessage += 'Unable to extract video from this URL. The platform may have changed their format or yt-dlp needs to be updated. Try running: sudo yt-dlp -U';
+          } else if (errorOutput.includes('ENOTFOUND') || errorOutput.includes('getaddrinfo')) {
+            errorMessage += 'Network connection failed. Please check your internet connection and try again.';
+          } else if (errorOutput.includes('timeout')) {
+            errorMessage += 'Download timed out. The video might be too large or your connection is too slow. Try again later.';
+          } else {
+            errorMessage += 'Please verify the URL is correct and the video is publicly accessible. If the problem persists, the platform may be temporarily down.';
+          }
+
+          reject(new Error(errorMessage));
         }
         return;
       }
@@ -385,7 +562,7 @@ async function downloadVideo(url, chatId, statusMessageId, attempt = 1) {
         const downloadedFile = files.find(f => f.startsWith(videoId));
 
         if (!downloadedFile) {
-          reject(new Error('Video file not found after download'));
+          reject(new Error('Video file not found after download. Possible causes: yt-dlp completed but saved the file elsewhere, file was immediately deleted by another process, or disk write failed. Check disk space and permissions.'));
           return;
         }
 
@@ -428,32 +605,50 @@ async function cleanupOldFiles() {
     const maxAge = MAX_FILE_AGE_HOURS * 60 * 60 * 1000;
 
     let deletedCount = 0;
+    let errorCount = 0;
 
     for (const file of files) {
-      const filePath = path.join(DOWNLOADS_DIR, file);
-      const stats = await fs.stat(filePath);
-      const age = now - stats.mtimeMs;
+      try {
+        const filePath = path.join(DOWNLOADS_DIR, file);
+        const stats = await fs.stat(filePath);
+        const age = now - stats.mtimeMs;
 
-      if (age > maxAge) {
-        await fs.unlink(filePath);
+        if (age > maxAge) {
+          await fs.unlink(filePath);
 
-        // Remove from cache
-        for (const [hash, cached] of cacheMap.entries()) {
-          if (cached.filename === file) {
-            cacheMap.delete(hash);
-            break;
+          // Remove from cache
+          for (const [hash, cached] of cacheMap.entries()) {
+            if (cached.filename === file) {
+              cacheMap.delete(hash);
+              break;
+            }
           }
-        }
 
-        deletedCount++;
+          deletedCount++;
+        }
+      } catch (fileError) {
+        errorCount++;
+        console.warn(`⚠️  Failed to process file "${file}" during cleanup: ${fileError.message}`);
+        // Continue with other files
       }
     }
 
     if (deletedCount > 0) {
       console.log(`🧹 Cleaned up ${deletedCount} old file(s)`);
     }
+    if (errorCount > 0) {
+      console.warn(`⚠️  ${errorCount} file(s) could not be cleaned up (they may be in use or already deleted)`);
+    }
   } catch (error) {
-    console.error('Cleanup error:', error);
+    console.error('⚠️  CLEANUP ERROR: Failed to perform file cleanup');
+    console.error('');
+    console.error('Possible causes:');
+    console.error('1. Downloads directory is missing or inaccessible');
+    console.error('2. No read permission on downloads directory');
+    console.error('3. File system error');
+    console.error('');
+    console.error('This is not critical - cleanup will retry in', CLEANUP_INTERVAL_MINUTES, 'minutes');
+    console.error('Error details:', error.message);
   }
 }
 
@@ -565,7 +760,12 @@ ${platformText}
 
     bot.sendMessage(chatId, statsMessage, { parse_mode: 'Markdown' });
   } catch (error) {
-    bot.sendMessage(chatId, '❌ Failed to retrieve statistics');
+    console.error('Stats command error:', error);
+    bot.sendMessage(
+      chatId,
+      '❌ *Failed to retrieve your statistics*\n\nReason: Database query error. This might be temporary. Please try again in a moment.\n\nIf the problem persists, contact the bot administrator.',
+      { parse_mode: 'Markdown' }
+    );
   }
 });
 
@@ -596,20 +796,32 @@ bot.on('message', async (msg) => {
   // Check rate limit
   const rateLimit = checkRateLimit(userId);
   if (!rateLimit.allowed) {
-    bot.sendMessage(
-      chatId,
-      `⏳ Please wait ${rateLimit.waitTime} seconds before sending another request.`,
-      { reply_to_message_id: msg.message_id }
-    );
+    try {
+      await bot.sendMessage(
+        chatId,
+        `⏳ Please wait ${rateLimit.waitTime} seconds before sending another request.`,
+        { reply_to_message_id: msg.message_id }
+      );
+    } catch (error) {
+      console.error('Failed to send rate limit message:', error.message);
+    }
     return;
   }
 
   // Notify user that download is starting
-  const statusMessage = await bot.sendMessage(
-    chatId,
-    `⏳ Downloading ${platform} video... Please wait!`,
-    { reply_to_message_id: msg.message_id }
-  );
+  let statusMessage;
+  try {
+    statusMessage = await bot.sendMessage(
+      chatId,
+      `⏳ Downloading ${platform} video... Please wait!`,
+      { reply_to_message_id: msg.message_id }
+    );
+  } catch (error) {
+    console.error('❌ Failed to send initial status message:', error.message);
+    console.error('Possible causes: Bot is blocked by user, chat does not exist, or rate limited by Telegram');
+    // If we can't send the initial message, there's no point in continuing
+    return;
+  }
 
   // Add to queue
   downloadQueue.add(async () => {
@@ -627,13 +839,18 @@ bot.on('message', async (msg) => {
 
       // Try to send video directly to Telegram
       try {
-        await bot.editMessageText(
-          '📤 Uploading to Telegram...',
-          {
-            chat_id: chatId,
-            message_id: statusMessage.message_id
-          }
-        );
+        try {
+          await bot.editMessageText(
+            '📤 Uploading to Telegram...',
+            {
+              chat_id: chatId,
+              message_id: statusMessage.message_id
+            }
+          );
+        } catch (editError) {
+          // Ignore edit errors, continue with upload
+          console.log('Could not update status to uploading:', editError.message);
+        }
 
         await bot.sendVideo(
           chatId,
@@ -645,7 +862,12 @@ bot.on('message', async (msg) => {
         );
 
         // Delete the status message since video was sent
-        await bot.deleteMessage(chatId, statusMessage.message_id);
+        try {
+          await bot.deleteMessage(chatId, statusMessage.message_id);
+        } catch (deleteError) {
+          // Ignore errors - message might already be deleted or too old
+          console.log(`⚠️  Could not delete status message (this is normal): ${deleteError.message}`);
+        }
 
         // Delete file after successful send to save space
         try {
@@ -653,30 +875,56 @@ bot.on('message', async (msg) => {
           cacheMap.delete(urlHash);
           console.log(`🗑️  Deleted file after sending: ${result.filename}`);
         } catch (deleteError) {
-          console.error('Error deleting file:', deleteError);
+          console.warn(`⚠️  Failed to delete file after sending: ${result.filename}`);
+          console.warn(`Reason: ${deleteError.message}`);
+          console.warn('File will be cleaned up during next scheduled cleanup cycle.');
         }
 
         success = true;
         console.log(`✅ Successfully sent video directly for ${platform} (chat ${chatId})`);
 
       } catch (sendError) {
-        // If direct send fails (file too large), send download link
-        console.warn('Direct send failed, providing download link:', sendError.message);
+        // If direct send fails, provide download link as fallback
+        console.warn('Direct send failed, attempting fallback:', sendError.message);
 
         const downloadUrl = PUBLIC_URL ? `${PUBLIC_URL}/downloads/${result.filename}` : null;
 
         if (downloadUrl) {
-          await bot.editMessageText(
-            `✅ *Video downloaded!*\n\n📥 [Click here to download](${downloadUrl})\n\n💡 (File too large for direct send)`,
-            {
-              chat_id: chatId,
-              message_id: statusMessage.message_id,
-              parse_mode: 'Markdown'
-            }
-          );
-          success = true;
+          // Determine reason for failure
+          let reason = '';
+          if (sendError.message && sendError.message.includes('file is too big')) {
+            reason = '(File exceeds Telegram\'s 50MB limit for bots)';
+          } else if (sendError.message && sendError.message.includes('ETELEGRAM: 400')) {
+            reason = '(Invalid file format or corrupted file)';
+          } else {
+            reason = '(Direct send not available - using download link instead)';
+          }
+
+          try {
+            await bot.editMessageText(
+              `✅ *Video downloaded successfully!*\n\n📥 [Click here to download](${downloadUrl})\n\n💡 ${reason}\n\nThe link will expire after ${MAX_FILE_AGE_HOURS} hours.`,
+              {
+                chat_id: chatId,
+                message_id: statusMessage.message_id,
+                parse_mode: 'Markdown'
+              }
+            );
+            success = true;
+          } catch (editError) {
+            // If we can't edit the message, send a new one
+            console.warn('Could not edit status message, sending new message:', editError.message);
+            await bot.sendMessage(
+              chatId,
+              `✅ *Video downloaded successfully!*\n\n📥 [Click here to download](${downloadUrl})\n\n💡 ${reason}\n\nThe link will expire after ${MAX_FILE_AGE_HOURS} hours.`,
+              {
+                reply_to_message_id: msg.message_id,
+                parse_mode: 'Markdown'
+              }
+            );
+            success = true;
+          }
         } else {
-          throw new Error('Cannot send video directly and PUBLIC_URL not configured');
+          throw new Error('Video download completed but cannot be delivered. Reason: Direct Telegram send failed and PUBLIC_URL is not configured in your .env file. Please add PUBLIC_URL=http://your-server-ip:3000 to your .env file and restart the bot.');
         }
       }
 
@@ -684,14 +932,31 @@ bot.on('message', async (msg) => {
       console.error('Processing error:', error);
       errorMessage = error.message;
 
-      await bot.editMessageText(
-        `❌ *Failed to download video*\n\nPlatform: ${platform}\nError: ${error.message}\n\nPlease make sure the link is valid and try again.`,
-        {
-          chat_id: chatId,
-          message_id: statusMessage.message_id,
-          parse_mode: 'Markdown'
+      try {
+        await bot.editMessageText(
+          `❌ *Failed to download video*\n\nPlatform: ${platform}\nError: ${error.message}\n\nPlease make sure the link is valid and try again.`,
+          {
+            chat_id: chatId,
+            message_id: statusMessage.message_id,
+            parse_mode: 'Markdown'
+          }
+        );
+      } catch (editError) {
+        // If we can't edit the message, send a new one
+        console.warn('Could not edit error message, sending new message:', editError.message);
+        try {
+          await bot.sendMessage(
+            chatId,
+            `❌ *Failed to download video*\n\nPlatform: ${platform}\nError: ${error.message}\n\nPlease make sure the link is valid and try again.`,
+            {
+              reply_to_message_id: msg.message_id,
+              parse_mode: 'Markdown'
+            }
+          );
+        } catch (sendError) {
+          console.error('❌ Could not notify user of error:', sendError.message);
         }
-      );
+      }
     }
 
     // Log to database
@@ -712,39 +977,135 @@ bot.on('message', async (msg) => {
         fromCache ? 1 : 0
       );
     } catch (dbError) {
-      console.error('Database error:', dbError);
+      console.error('⚠️  DATABASE LOGGING ERROR: Failed to log download activity to database');
+      console.error(`User: ${username} (${userId}), Platform: ${platform}`);
+      console.error('Possible causes:');
+      console.error('1. Database is locked by another process');
+      console.error('2. Disk is full');
+      console.error('3. Database file permissions changed');
+      console.error('');
+      console.error('This does not affect video downloads, but analytics will be incomplete.');
+      console.error('Error details:', dbError.message);
     }
   });
 });
 
-// Error handling
+// Error handling for Telegram polling
 bot.on('polling_error', (error) => {
-  console.error('Polling error:', error);
+  console.error('⚠️  TELEGRAM POLLING ERROR: Connection issue with Telegram servers');
+  console.error('');
+  console.error('Possible causes:');
+  console.error('1. Network connectivity issue - Check your internet connection');
+  console.error('2. Telegram API is temporarily down - Check https://telegram.org');
+  console.error('3. Invalid bot token - Verify TELEGRAM_BOT_TOKEN in .env file');
+  console.error('4. Firewall blocking connection - Check firewall rules');
+  console.error('5. Rate limiting - Too many requests to Telegram API');
+  console.error('');
+  console.error('The bot will automatically retry the connection.');
+  console.error('Error details:', error.code || error.message);
+  console.error('');
 });
 
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled rejection:', error);
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️  UNHANDLED PROMISE REJECTION: An async operation failed without proper error handling');
+  console.error('');
+  console.error('This indicates a bug in the code where a promise rejection was not caught.');
+  console.error('The bot will continue running, but this issue should be reported.');
+  console.error('');
+  console.error('Promise:', promise);
+  console.error('Reason:', reason);
+  console.error('');
+  console.error('Stack trace:', reason?.stack || 'No stack trace available');
+  console.error('');
 });
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
+process.on('uncaughtException', (error, origin) => {
+  console.error('❌ CRITICAL ERROR: Uncaught exception occurred');
+  console.error('');
+  console.error('This is a fatal error that will cause the bot to shut down.');
+  console.error('The bot should automatically restart if running under systemd or PM2.');
+  console.error('');
+  console.error('Origin:', origin);
+  console.error('Error:', error.message);
+  console.error('Stack trace:', error.stack);
+  console.error('');
+  console.error('If you see this frequently, please report the issue with the full error details.');
+  console.error('');
   process.exit(1);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n👋 Shutting down gracefully...');
-  await downloadQueue.onIdle();
-  bot.stopPolling();
-  db.close();
+  console.log(`⏳ Waiting for ${downloadQueue.size + downloadQueue.pending} download(s) to complete...`);
+
+  try {
+    // Wait for queue to drain with timeout
+    await Promise.race([
+      downloadQueue.onIdle(),
+      new Promise((resolve) => setTimeout(() => {
+        console.warn('⚠️  Timeout waiting for downloads to complete. Forcing shutdown...');
+        resolve();
+      }, 30000)) // 30 second timeout
+    ]);
+
+    console.log('✅ All downloads completed');
+  } catch (error) {
+    console.error('⚠️  Error during queue drainage:', error.message);
+  }
+
+  try {
+    bot.stopPolling();
+    console.log('✅ Telegram polling stopped');
+  } catch (error) {
+    console.error('⚠️  Error stopping polling:', error.message);
+  }
+
+  try {
+    db.close();
+    console.log('✅ Database closed');
+  } catch (error) {
+    console.error('⚠️  Error closing database:', error.message);
+  }
+
+  console.log('👋 Shutdown complete');
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n👋 Shutting down gracefully...');
-  await downloadQueue.onIdle();
-  bot.stopPolling();
-  db.close();
+  console.log('\n👋 Shutting down gracefully (SIGTERM)...');
+  console.log(`⏳ Waiting for ${downloadQueue.size + downloadQueue.pending} download(s) to complete...`);
+
+  try {
+    // Wait for queue to drain with timeout
+    await Promise.race([
+      downloadQueue.onIdle(),
+      new Promise((resolve) => setTimeout(() => {
+        console.warn('⚠️  Timeout waiting for downloads to complete. Forcing shutdown...');
+        resolve();
+      }, 30000)) // 30 second timeout
+    ]);
+
+    console.log('✅ All downloads completed');
+  } catch (error) {
+    console.error('⚠️  Error during queue drainage:', error.message);
+  }
+
+  try {
+    bot.stopPolling();
+    console.log('✅ Telegram polling stopped');
+  } catch (error) {
+    console.error('⚠️  Error stopping polling:', error.message);
+  }
+
+  try {
+    db.close();
+    console.log('✅ Database closed');
+  } catch (error) {
+    console.error('⚠️  Error closing database:', error.message);
+  }
+
+  console.log('👋 Shutdown complete');
   process.exit(0);
 });
 
