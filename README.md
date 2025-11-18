@@ -121,7 +121,7 @@ Bot: [Video sent directly to chat] ✅ Downloaded from TikTok
 **For the impatient (automated installation):**
 
 ```bash
-curl -o- https://raw.githubusercontent.com/YOUR_USERNAME/telegram-tiktok-downloader/main/install.sh | bash
+curl -o- https://raw.githubusercontent.com/ragilmalik/telegram-tiktok-downloader/main/install.sh | bash
 ```
 
 **That's it!** The script will:
@@ -1219,7 +1219,7 @@ Add your own custom instructions here...
 - ⭐ Starring the repo
 - 🍴 Sharing with friends
 - 💬 Leaving feedback
-- ☕ [Buying me a coffee](https://buymeacoffee.com/yourusername)
+- ☕ [Buying me a coffee](https://buymeacoffee.com/ragilmalik)
 
 ---
 
