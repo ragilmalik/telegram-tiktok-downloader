@@ -1,1 +1,781 @@
-# telegram-tiktok-downloader
+# 🎬 Telegram TikTok Video Downloader Bot
+
+A powerful Telegram bot that allows users to download TikTok videos directly to their devices. Simply send a TikTok link to the bot, and it will return a direct download URL that works on any device!
+
+## ✨ Features
+
+- 🚀 **Fast & Easy**: Just send a TikTok link, get a download link instantly
+- 📱 **Universal**: Works on all devices (phones, tablets, computers)
+- 🔗 **Direct Downloads**: One-click download links
+- 🔄 **Auto-Start**: Runs automatically on server boot
+- 🧹 **Auto-Cleanup**: Automatically removes old downloaded files
+- 💾 **Self-Hosted**: Complete control over your data
+- 🛡️ **Reliable**: Auto-restart on crashes
+- 📊 **Statistics**: Track usage and cached videos
+
+## 📋 Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Quick Start Installation](#quick-start-installation)
+- [Manual Installation](#manual-installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Deployment](#deployment)
+- [Managing the Bot](#managing-the-bot)
+- [Troubleshooting](#troubleshooting)
+- [Advanced Configuration](#advanced-configuration)
+- [Architecture](#architecture)
+- [Security Considerations](#security-considerations)
+- [FAQ](#faq)
+
+## 🔧 Prerequisites
+
+Before you begin, ensure you have:
+
+1. **A Linux server** (Ubuntu 20.04+ recommended)
+   - VPS, cloud server, or dedicated server
+   - Minimum 1GB RAM, 1 CPU core
+   - Public IP address or domain name
+
+2. **Server access**
+   - SSH access to your server
+   - sudo/root privileges
+
+3. **Telegram Bot Token**
+   - Get one from [@BotFather](https://t.me/BotFather) on Telegram
+   - [How to create a bot](#creating-a-telegram-bot)
+
+4. **Basic knowledge of Linux command line**
+
+## 🚀 Quick Start Installation
+
+### Option 1: Automated Installation (Recommended)
+
+1. **Connect to your server via SSH:**
+   ```bash
+   ssh your_username@your_server_ip
+   ```
+
+2. **Clone or download this repository:**
+   ```bash
+   git clone https://github.com/yourusername/telegram-tiktok-downloader.git
+   cd telegram-tiktok-downloader
+   ```
+
+3. **Run the installation script:**
+   ```bash
+   chmod +x install.sh
+   ./install.sh
+   ```
+
+4. **Follow the interactive prompts:**
+   - The script will install Node.js and yt-dlp if needed
+   - Configure your `.env` file when prompted
+   - Choose whether to set up auto-start
+   - Choose whether to start the bot immediately
+
+5. **Done!** Your bot is now running and will auto-start on server reboot.
+
+### Option 2: Manual Installation
+
+If you prefer to install manually, follow the [Manual Installation](#manual-installation-guide) section below.
+
+## 📝 Manual Installation Guide
+
+### Step 1: Install Node.js
+
+```bash
+# Add NodeSource repository
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+
+# Install Node.js
+sudo apt-get install -y nodejs
+
+# Verify installation
+node --version
+npm --version
+```
+
+### Step 2: Install yt-dlp
+
+```bash
+# Download yt-dlp
+sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+
+# Make it executable
+sudo chmod a+rx /usr/local/bin/yt-dlp
+
+# Verify installation
+yt-dlp --version
+```
+
+### Step 3: Clone the Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/telegram-tiktok-downloader.git
+
+# Navigate to the directory
+cd telegram-tiktok-downloader
+```
+
+### Step 4: Install Dependencies
+
+```bash
+# Install Node.js packages
+npm install
+```
+
+### Step 5: Configure Environment Variables
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit the configuration file
+nano .env
+```
+
+**Important: Configure these variables in `.env`:**
+
+```env
+# Your Telegram bot token from @BotFather
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# Your server's public URL (how users access your server)
+PUBLIC_URL=http://123.456.789.012:3000
+
+# Port for the web server (default: 3000)
+PORT=3000
+
+# How long to keep downloaded files (in hours)
+MAX_FILE_AGE_HOURS=24
+
+# How often to check for old files to delete (in minutes)
+CLEANUP_INTERVAL_MINUTES=60
+```
+
+**Finding your PUBLIC_URL:**
+- If you have a domain: `https://yourdomain.com` or `https://bot.yourdomain.com`
+- If using IP: `http://YOUR_SERVER_IP:3000`
+- Get your server IP: `curl ifconfig.me`
+
+### Step 6: Create Required Directories
+
+```bash
+# Create directories for downloads and logs
+mkdir -p downloads logs
+```
+
+### Step 7: Test the Bot
+
+```bash
+# Run the bot in test mode
+npm start
+```
+
+You should see:
+```
+✅ yt-dlp is available
+✅ Downloads directory ready
+✅ Web server running on port 3000
+✅ Public URL: http://your-server:3000
+🤖 Telegram TikTok Downloader Bot is running...
+📱 Waiting for messages...
+```
+
+**Test it:**
+1. Open Telegram and find your bot
+2. Send `/start`
+3. Send a TikTok video link
+4. You should receive a download link!
+
+If it works, press `Ctrl+C` to stop the test.
+
+## 🔄 Deployment (Auto-Start Setup)
+
+To keep the bot running 24/7 and auto-start on server reboot:
+
+### Method 1: Using systemd (Recommended)
+
+1. **Edit the service file with your paths:**
+
+```bash
+# Get your current username
+whoami
+
+# Get the full path to your installation
+pwd
+```
+
+2. **Edit the service file:**
+
+```bash
+nano tiktok-bot.service
+```
+
+Replace these values:
+- `YOUR_USERNAME` → your username (from `whoami`)
+- `/path/to/telegram-tiktok-downloader` → your installation path (from `pwd`)
+
+Example:
+```ini
+User=ubuntu
+WorkingDirectory=/home/ubuntu/telegram-tiktok-downloader
+ExecStart=/usr/bin/node /home/ubuntu/telegram-tiktok-downloader/bot.js
+StandardOutput=append:/home/ubuntu/telegram-tiktok-downloader/logs/bot.log
+StandardError=append:/home/ubuntu/telegram-tiktok-downloader/logs/error.log
+```
+
+3. **Install and enable the service:**
+
+```bash
+# Copy service file to systemd
+sudo cp tiktok-bot.service /etc/systemd/system/
+
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable auto-start on boot
+sudo systemctl enable tiktok-bot
+
+# Start the service
+sudo systemctl start tiktok-bot
+
+# Check status
+sudo systemctl status tiktok-bot
+```
+
+### Method 2: Using PM2 (Alternative)
+
+```bash
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Start the bot with PM2
+pm2 start bot.js --name tiktok-bot
+
+# Save PM2 configuration
+pm2 save
+
+# Set up PM2 to start on boot
+pm2 startup
+
+# Run the command that PM2 outputs
+```
+
+## 🎯 Usage
+
+### Bot Commands
+
+- `/start` - Show welcome message and instructions
+- `/help` - Display help information
+- `/stats` - Show bot statistics (uptime, cached videos, etc.)
+
+### Downloading Videos
+
+1. **Find a TikTok video** you want to download
+2. **Share or copy the link** (any TikTok link format works)
+3. **Send the link** to your bot on Telegram
+4. **Wait** for the bot to process (usually 5-10 seconds)
+5. **Click the download link** the bot sends back
+6. **Save the video** to your device
+
+### Supported Link Formats
+
+- `https://www.tiktok.com/@username/video/1234567890`
+- `https://vm.tiktok.com/ABC123/`
+- `https://vt.tiktok.com/XYZ789/`
+- Mobile share links
+- Short links
+
+## 🔧 Managing the Bot
+
+### If Using systemd:
+
+```bash
+# Start the bot
+sudo systemctl start tiktok-bot
+
+# Stop the bot
+sudo systemctl stop tiktok-bot
+
+# Restart the bot
+sudo systemctl restart tiktok-bot
+
+# Check status
+sudo systemctl status tiktok-bot
+
+# View live logs
+sudo journalctl -u tiktok-bot -f
+
+# View last 100 log lines
+sudo journalctl -u tiktok-bot -n 100
+
+# Disable auto-start
+sudo systemctl disable tiktok-bot
+
+# Enable auto-start
+sudo systemctl enable tiktok-bot
+```
+
+### If Using PM2:
+
+```bash
+# Start the bot
+pm2 start tiktok-bot
+
+# Stop the bot
+pm2 stop tiktok-bot
+
+# Restart the bot
+pm2 restart tiktok-bot
+
+# Check status
+pm2 status
+
+# View logs
+pm2 logs tiktok-bot
+
+# Monitor in real-time
+pm2 monit
+```
+
+### Manual Running (Development):
+
+```bash
+# Navigate to the directory
+cd /path/to/telegram-tiktok-downloader
+
+# Start the bot
+npm start
+
+# Or for development with auto-reload
+npm run dev
+```
+
+## 🐛 Troubleshooting
+
+### Bot doesn't respond to messages
+
+1. **Check if the bot is running:**
+   ```bash
+   sudo systemctl status tiktok-bot
+   # or
+   pm2 status
+   ```
+
+2. **Check the logs:**
+   ```bash
+   sudo journalctl -u tiktok-bot -n 50
+   # or
+   pm2 logs tiktok-bot
+   ```
+
+3. **Verify your bot token:**
+   ```bash
+   grep TELEGRAM_BOT_TOKEN .env
+   ```
+
+4. **Test manually:**
+   ```bash
+   npm start
+   ```
+
+### "Failed to download video" error
+
+1. **Check yt-dlp is installed:**
+   ```bash
+   yt-dlp --version
+   ```
+
+2. **Update yt-dlp to latest version:**
+   ```bash
+   sudo yt-dlp -U
+   ```
+
+3. **Test yt-dlp directly:**
+   ```bash
+   yt-dlp "https://vm.tiktok.com/test/" -o test.mp4
+   ```
+
+4. **Check disk space:**
+   ```bash
+   df -h
+   ```
+
+### Download link doesn't work
+
+1. **Check PUBLIC_URL is correct:**
+   ```bash
+   grep PUBLIC_URL .env
+   ```
+
+2. **Test if web server is accessible:**
+   ```bash
+   curl http://localhost:3000/health
+   ```
+
+3. **Check firewall settings:**
+   ```bash
+   sudo ufw status
+   ```
+
+4. **Make sure port is open:**
+   ```bash
+   sudo ufw allow 3000/tcp
+   sudo ufw reload
+   ```
+
+5. **Test from outside:**
+   ```bash
+   # From your local computer
+   curl http://YOUR_SERVER_IP:3000/health
+   ```
+
+### Bot stops after closing terminal
+
+**Solution:** Use systemd or PM2 as described in the [Deployment](#deployment-auto-start-setup) section.
+
+### Permission errors
+
+```bash
+# Fix ownership of files
+sudo chown -R $USER:$USER /path/to/telegram-tiktok-downloader
+
+# Fix permissions
+chmod -R 755 /path/to/telegram-tiktok-downloader
+```
+
+### "Cannot find module" errors
+
+```bash
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+```
+
+## ⚙️ Advanced Configuration
+
+### Using HTTPS with Nginx
+
+For production use, it's recommended to use HTTPS:
+
+1. **Install Nginx:**
+   ```bash
+   sudo apt update
+   sudo apt install nginx
+   ```
+
+2. **Configure Nginx as reverse proxy:**
+   ```bash
+   sudo nano /etc/nginx/sites-available/tiktok-bot
+   ```
+
+   Add:
+   ```nginx
+   server {
+       listen 80;
+       server_name yourdomain.com;
+
+       location / {
+           proxy_pass http://localhost:3000;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   ```
+
+3. **Enable the site:**
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/tiktok-bot /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl restart nginx
+   ```
+
+4. **Install SSL with Let's Encrypt:**
+   ```bash
+   sudo apt install certbot python3-certbot-nginx
+   sudo certbot --nginx -d yourdomain.com
+   ```
+
+5. **Update your .env:**
+   ```env
+   PUBLIC_URL=https://yourdomain.com
+   ```
+
+### Changing the Port
+
+1. **Edit .env:**
+   ```bash
+   nano .env
+   ```
+   Change `PORT=3000` to your desired port
+
+2. **Update firewall:**
+   ```bash
+   sudo ufw allow YOUR_NEW_PORT/tcp
+   ```
+
+3. **Restart the bot:**
+   ```bash
+   sudo systemctl restart tiktok-bot
+   ```
+
+### Adjusting File Cleanup
+
+Edit `.env` to change cleanup behavior:
+
+```env
+# Keep files for 12 hours instead of 24
+MAX_FILE_AGE_HOURS=12
+
+# Check every 30 minutes instead of 60
+CLEANUP_INTERVAL_MINUTES=30
+```
+
+Restart bot after changes:
+```bash
+sudo systemctl restart tiktok-bot
+```
+
+## 🏗️ Architecture
+
+```
+┌─────────────┐
+│   Telegram  │
+│    User     │
+└──────┬──────┘
+       │
+       │ Sends TikTok URL
+       │
+       ▼
+┌─────────────────────┐
+│   Telegram Bot API  │
+│  (node-telegram-    │
+│     bot-api)        │
+└──────┬──────────────┘
+       │
+       │ Receives URL
+       │
+       ▼
+┌─────────────────────┐
+│    Bot Logic        │
+│    (bot.js)         │
+│                     │
+│  • URL validation   │
+│  • Download mgmt    │
+│  • Cleanup logic    │
+└──────┬──────────────┘
+       │
+       │ Calls yt-dlp
+       │
+       ▼
+┌─────────────────────┐
+│      yt-dlp         │
+│                     │
+│  Downloads video    │
+│  from TikTok        │
+└──────┬──────────────┘
+       │
+       │ Saves file
+       │
+       ▼
+┌─────────────────────┐
+│   downloads/        │
+│   directory         │
+│                     │
+│  • video1.mp4       │
+│  • video2.mp4       │
+└──────┬──────────────┘
+       │
+       │ Served by
+       │
+       ▼
+┌─────────────────────┐
+│  Express Server     │
+│                     │
+│  /downloads/*       │
+│  /health            │
+└──────┬──────────────┘
+       │
+       │ Returns URL
+       │
+       ▼
+┌─────────────┐
+│   Telegram  │
+│    User     │
+│             │
+│ Clicks link │
+│ Downloads!  │
+└─────────────┘
+```
+
+## 🔒 Security Considerations
+
+### Important Security Notes:
+
+1. **Never commit `.env` file** - It contains sensitive credentials
+2. **Use HTTPS in production** - Protect download links
+3. **Keep dependencies updated** - Run `npm update` regularly
+4. **Monitor disk usage** - Set appropriate cleanup intervals
+5. **Use a firewall** - Only open necessary ports
+6. **Regular backups** - Backup your configuration
+
+### Recommended Security Practices:
+
+```bash
+# Keep yt-dlp updated
+sudo yt-dlp -U
+
+# Update Node.js packages
+npm update
+
+# Check for vulnerabilities
+npm audit
+
+# Fix vulnerabilities
+npm audit fix
+
+# Enable firewall
+sudo ufw enable
+sudo ufw allow 22/tcp  # SSH
+sudo ufw allow 3000/tcp  # Bot (or your port)
+
+# Monitor system
+sudo apt install fail2ban
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+```
+
+## 🆘 Creating a Telegram Bot
+
+1. **Open Telegram** and search for [@BotFather](https://t.me/BotFather)
+
+2. **Start a chat** and send `/newbot`
+
+3. **Follow the prompts:**
+   - Choose a name for your bot (e.g., "My TikTok Downloader")
+   - Choose a username (must end in 'bot', e.g., "mytiktokdownload_bot")
+
+4. **Save your token** - BotFather will give you a token like:
+   ```
+   1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+   ```
+
+5. **Configure bot settings** (optional):
+   - Send `/setdescription` to set a description
+   - Send `/setabouttext` to set about text
+   - Send `/setuserpic` to set a profile picture
+
+6. **Use the token** in your `.env` file
+
+## ❓ FAQ
+
+### Q: Does this work with private TikTok accounts?
+**A:** No, only public videos can be downloaded.
+
+### Q: What's the maximum video size?
+**A:** There's no hard limit, but very large files may timeout. Most TikTok videos are under 50MB.
+
+### Q: Can I download multiple videos at once?
+**A:** Yes! Send multiple links and the bot will process them sequentially.
+
+### Q: How much disk space do I need?
+**A:** Depends on usage. Start with 10GB free. The bot auto-deletes old files based on your `MAX_FILE_AGE_HOURS` setting.
+
+### Q: Can I use this on shared hosting?
+**A:** You need VPS/cloud hosting with SSH access and ability to run Node.js applications.
+
+### Q: Does this download without watermarks?
+**A:** yt-dlp attempts to get the best quality available. Some videos may still have watermarks depending on TikTok's API.
+
+### Q: How do I update the bot?
+**A:**
+```bash
+cd /path/to/telegram-tiktok-downloader
+git pull
+npm install
+sudo systemctl restart tiktok-bot
+```
+
+### Q: Can I use a custom domain instead of IP address?
+**A:** Yes! Point your domain to your server's IP and update `PUBLIC_URL` in `.env`.
+
+### Q: Is this legal?
+**A:** You're responsible for ensuring your use complies with TikTok's Terms of Service and local laws. This is intended for personal use and backing up your own content.
+
+## 📊 Monitoring & Logs
+
+### View Real-time Logs:
+```bash
+# systemd
+sudo journalctl -u tiktok-bot -f
+
+# PM2
+pm2 logs tiktok-bot --lines 100
+
+# File logs
+tail -f logs/bot.log
+tail -f logs/error.log
+```
+
+### Check Disk Usage:
+```bash
+# Overall disk usage
+df -h
+
+# Downloads directory size
+du -sh downloads/
+
+# Count files in downloads
+ls -1 downloads/ | wc -l
+```
+
+### Monitor Bot Performance:
+```bash
+# Check bot status
+sudo systemctl status tiktok-bot
+
+# Check system resources
+htop
+
+# Check network connections
+sudo netstat -tulpn | grep :3000
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Amazing video downloader
+- [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api) - Telegram Bot API wrapper
+- [Express](https://expressjs.com/) - Web framework
+
+## 📞 Support
+
+If you encounter any issues:
+
+1. Check the [Troubleshooting](#troubleshooting) section
+2. Review the [FAQ](#faq)
+3. Check existing GitHub issues
+4. Create a new issue with:
+   - Your OS and version
+   - Node.js version (`node --version`)
+   - Error messages from logs
+   - Steps to reproduce
+
+## 🎉 You're All Set!
+
+Your Telegram TikTok Downloader Bot is now ready to use! Send it a TikTok link and enjoy downloading videos directly to your device.
+
+Happy downloading! 🚀
