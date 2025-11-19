@@ -137,8 +137,8 @@ curl -o- https://raw.githubusercontent.com/ragilmalik/telegram-tiktok-downloader
 
 **After installation, your bot will be running at:**
 - 🤖 Telegram Bot: Ready to receive links
-- 🌐 Web Server: `http://your-server-ip:3000`
-- 📊 Admin Panel: `http://your-server-ip:5000`
+- 🌐 Web Server: `http://your-server-ip:3456`
+- 📊 Admin Panel: `http://your-server-ip:5789`
 
 ---
 
@@ -315,9 +315,9 @@ nano .env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 
 # Server Configuration
-PORT=3000
-ADMIN_PORT=5000
-PUBLIC_URL=http://your-server-ip:3000
+PORT=3456
+ADMIN_PORT=5789
+PUBLIC_URL=http://your-server-ip:3456
 
 # Download Settings
 MAX_FILE_AGE_HOURS=24
@@ -337,7 +337,7 @@ MAX_RETRIES=3
 
 2. **Replace `your-server-ip`** with your actual server IP address
    - Don't know your IP? Run: `curl ifconfig.me`
-   - Example: `PUBLIC_URL=http://142.93.123.45:3000`
+   - Example: `PUBLIC_URL=http://142.93.123.45:3456`
 
 3. **Leave everything else as default** (you can customize later!)
 
@@ -364,10 +364,10 @@ node bot.js
 ✅ Database initialized successfully
 ✅ Directories ready
 ✅ yt-dlp is available
-✅ Web server running on port 3000
-✅ Public URL: http://your-server-ip:3000
-✅ Admin panel running on port 5000
-📊 Access admin panel at: http://localhost:5000
+✅ Web server running on port 3456
+✅ Public URL: http://your-server-ip:3456
+✅ Admin panel running on port 5789
+📊 Access admin panel at: http://localhost:5789
 🤖 Multi-Platform Video Downloader Bot is running...
 📊 Features: Queue (3 concurrent), Caching, Rate Limiting, Analytics
 📱 Waiting for messages...
@@ -460,7 +460,7 @@ sudo systemctl status tiktok-bot
 **Open your browser and go to:**
 
 ```
-http://your-server-ip:5000
+http://your-server-ip:5789
 ```
 
 **Replace `your-server-ip` with your actual server IP!**
@@ -507,7 +507,7 @@ Bot: [Sends video] ✅ Downloaded from TikTok
 
 ### For Admins (Dashboard)
 
-**Access the admin panel at:** `http://your-server-ip:5000`
+**Access the admin panel at:** `http://your-server-ip:5789`
 
 **What you can do:**
 
@@ -639,23 +639,24 @@ TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 ### Server Configuration
 
 ```bash
-PORT=3000
+PORT=3456
 ```
 - **What:** Port for the download link server
-- **Default:** 3000
-- **Change if:** Port 3000 is already in use
-- **Examples:** 3001, 8080, 8000
+- **Default:** 3456 (changed from 3000 to avoid conflicts)
+- **Change if:** Port is already in use
+- **Note:** Avoids conflict with common dev servers (React, Next.js, etc.)
 
 ```bash
-ADMIN_PORT=5000
+ADMIN_PORT=5789
 ```
 - **What:** Port for the admin dashboard
-- **Default:** 5000
-- **Change if:** Port 5000 is already in use
-- **Access:** `http://your-server-ip:5000`
+- **Default:** 5789 (changed from 5000 to avoid conflicts)
+- **Change if:** Port is already in use
+- **Access:** `http://your-server-ip:5789`
+- **Note:** Avoids conflict with Flask and other common apps
 
 ```bash
-PUBLIC_URL=http://142.93.123.45:3000
+PUBLIC_URL=http://142.93.123.45:3456
 ```
 - **What:** Your server's public URL
 - **Format:** `http://YOUR_IP:PORT`
@@ -799,13 +800,13 @@ sudo yt-dlp -U
 
 **Check if admin server is running:**
 ```bash
-curl http://localhost:5000
+curl http://localhost:5789
 ```
 
 **Check firewall:**
 ```bash
-# Allow port 5000
-sudo ufw allow 5000/tcp
+# Allow port 5789
+sudo ufw allow 5789/tcp
 
 # Or disable firewall temporarily to test
 sudo ufw disable
@@ -813,7 +814,7 @@ sudo ufw disable
 
 **Check if port is in use:**
 ```bash
-sudo lsof -i :5000
+sudo lsof -i :5789
 ```
 
 **If port is taken, change it:**
@@ -821,7 +822,7 @@ sudo lsof -i :5000
 # Edit .env
 nano .env
 
-# Change ADMIN_PORT=5000 to ADMIN_PORT=5001
+# Change ADMIN_PORT=5789 to ADMIN_PORT=5790 (or another unused port)
 
 # Restart bot
 sudo systemctl restart tiktok-bot
@@ -871,11 +872,11 @@ chmod 755 downloads
 
 **Find what's using the port:**
 ```bash
-# For port 3000
-sudo lsof -i :3000
+# For web server port
+sudo lsof -i :3456
 
-# For port 5000
-sudo lsof -i :5000
+# For admin panel port
+sudo lsof -i :5789
 ```
 
 **Kill the process:**
@@ -887,10 +888,12 @@ sudo kill -9 PID_NUMBER
 **Or change the port in `.env`:**
 ```bash
 nano .env
-# Change PORT=3000 to PORT=3001
-# Change ADMIN_PORT=5000 to ADMIN_PORT=5001
+# Change PORT=3456 to another unused port (e.g., 3457, 3912, etc.)
+# Change ADMIN_PORT=5789 to another unused port (e.g., 5790, 5800, etc.)
 sudo systemctl restart tiktok-bot
 ```
+
+**Note:** Ports 3456 and 5789 are less commonly used than 3000/5000, so conflicts should be rare.
 
 ---
 

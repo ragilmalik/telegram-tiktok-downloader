@@ -12,8 +12,8 @@ const Database = require('better-sqlite3');
 
 // Configuration
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const WEB_SERVER_PORT = process.env.PORT || 3000;
-const ADMIN_PORT = process.env.ADMIN_PORT || 5000;
+const WEB_SERVER_PORT = process.env.PORT || 3456;
+const ADMIN_PORT = process.env.ADMIN_PORT || 5789;
 const PUBLIC_URL = process.env.PUBLIC_URL;
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
 const MAX_FILE_AGE_HOURS = parseInt(process.env.MAX_FILE_AGE_HOURS || '24');

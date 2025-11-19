@@ -292,8 +292,8 @@ echo ""
 echo "🔥 Step 9: Checking firewall configuration..."
 if command -v ufw &> /dev/null && sudo ufw status | grep -q "Status: active"; then
     print_warning "UFW firewall is active"
-    PORT=$(grep -oP '^PORT=\K\d+' .env || echo "3000")
-    ADMIN_PORT=$(grep -oP '^ADMIN_PORT=\K\d+' .env || echo "5000")
+    PORT=$(grep -oP '^PORT=\K\d+' .env || echo "3456")
+    ADMIN_PORT=$(grep -oP '^ADMIN_PORT=\K\d+' .env || echo "5789")
 
     read -p "Do you want to open ports $PORT and $ADMIN_PORT in the firewall? (y/n) " -n 1 -r </dev/tty
     echo ""
