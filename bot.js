@@ -42,21 +42,91 @@ if (!TELEGRAM_TOKEN) {
   process.exit(1);
 }
 
-// Initialize bot with error handling
+// Initialize bot WITHOUT polling first (we'll validate token first)
 let bot;
 try {
-  bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+  bot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
 } catch (error) {
-  console.error('❌ BOT INITIALIZATION ERROR: Failed to connect to Telegram');
-  console.error('');
-  console.error('Possible causes:');
-  console.error('1. Invalid bot token - Please check your TELEGRAM_BOT_TOKEN in .env file');
-  console.error('2. Network connectivity issues - Check your internet connection');
-  console.error('3. Telegram API is temporarily down - Try again later');
+  console.error('❌ BOT INITIALIZATION ERROR: Failed to create bot instance');
   console.error('');
   console.error('Error details:', error.message);
   process.exit(1);
 }
+
+// Validate token by testing connection BEFORE starting polling
+(async () => {
+  console.log('🔍 Validating bot token...');
+
+  try {
+    const botInfo = await bot.getMe();
+    console.log('✅ Bot token is valid!');
+    console.log(`📱 Bot username: @${botInfo.username}`);
+    console.log(`🤖 Bot name: ${botInfo.first_name}`);
+    console.log('');
+    console.log('🔄 Starting polling...');
+
+    // NOW start polling after validation
+    await bot.startPolling();
+    console.log('✅ Polling started successfully');
+
+  } catch (error) {
+    console.error('❌ CONNECTION FAILED: Cannot connect to Telegram API');
+    console.error('');
+
+    // Check if it's a token issue or network issue
+    if (error.response && error.response.statusCode === 401) {
+      console.error('🚫 INVALID BOT TOKEN');
+      console.error('');
+      console.error('Your token is incorrect or has been revoked.');
+      console.error('');
+      console.error('Steps to fix:');
+      console.error('1. Open Telegram and message @BotFather');
+      console.error('2. Send /mybots');
+      console.error('3. Select your bot');
+      console.error('4. Click "API Token" to view/regenerate your token');
+      console.error('5. Copy the token and update TELEGRAM_BOT_TOKEN in your .env file');
+      console.error('');
+      console.error('Current token (first 10 chars):', TELEGRAM_TOKEN.substring(0, 10) + '...');
+    } else if (error.code === 'EFATAL' && error.message.includes('409')) {
+      console.error('⚠️  CONFLICT: Another instance is already running');
+      console.error('');
+      console.error('Telegram bots can only have ONE active polling connection.');
+      console.error('');
+      console.error('To fix this:');
+      console.error('1. Stop ALL running instances of this bot');
+      console.error('2. Check systemd: sudo systemctl stop tiktok-bot');
+      console.error('3. Kill node processes: pkill -f bot.js');
+      console.error('4. Check PM2: pm2 list && pm2 delete all');
+      console.error('5. Then restart this bot');
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+      console.error('🌐 NETWORK ERROR: Cannot reach Telegram servers');
+      console.error('');
+      console.error('Possible causes:');
+      console.error('1. No internet connection');
+      console.error('2. Firewall blocking api.telegram.org');
+      console.error('3. DNS resolution failure');
+      console.error('4. Telegram is blocked in your country (use VPN)');
+      console.error('');
+      console.error('Tests to run:');
+      console.error('  ping 8.8.8.8  # Test basic connectivity');
+      console.error('  curl -I https://api.telegram.org  # Test Telegram API access');
+      console.error('  nslookup api.telegram.org  # Test DNS resolution');
+    } else {
+      console.error('❌ UNKNOWN ERROR');
+      console.error('');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('');
+      if (error.response) {
+        console.error('Response status:', error.response.statusCode);
+        console.error('Response body:', error.response.body);
+      }
+    }
+
+    console.error('');
+    process.exit(1);
+  }
+})();
 
 // Initialize download queue with concurrency limit
 const downloadQueue = new PQueue({ concurrency: MAX_CONCURRENT_DOWNLOADS });
