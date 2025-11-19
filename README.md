@@ -207,19 +207,19 @@ ssh root@your-server-ip
 # Update package list
 sudo apt update
 
-# Install Node.js (version 18)
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+# Install Node.js 20 LTS (recommended for best compatibility)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # Verify installation
-node --version  # Should show v18.x.x or higher
-npm --version   # Should show 9.x.x or higher
+node --version  # Should show v20.x.x
+npm --version   # Should show 10.x.x
 ```
 
 **For other systems:**
 - **CentOS/RHEL:** Replace `apt` with `yum`
-- **macOS:** `brew install node`
-- **Already have Node?** Make sure it's version 18 or higher!
+- **macOS:** `brew install node@20`
+- **Already have Node?** Node.js 18-20 LTS is recommended. Node.js 24+ is not compatible with better-sqlite3.
 
 ---
 
@@ -742,6 +742,27 @@ sudo journalctl -u tiktok-bot -n 50
 3. ❌ **Bot is blocked**
    - Error: `Failed to send initial status message`
    - Fix: Unblock the bot in Telegram settings
+
+### Node.js compatibility issues
+
+**Error: "C++20 or later required" during npm install**
+
+This means you have Node.js v24+ which is incompatible with better-sqlite3.
+
+**Solution: Downgrade to Node.js 20 LTS:**
+```bash
+# Install Node.js 20 LTS
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify version
+node --version  # Should show v20.x.x
+
+# Try installing again
+cd ~/telegram-tiktok-downloader
+rm -rf node_modules package-lock.json
+npm install
+```
 
 ### Downloads fail
 
