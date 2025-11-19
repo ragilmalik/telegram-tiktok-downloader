@@ -21,6 +21,11 @@ const CLEANUP_INTERVAL_MINUTES = parseInt(process.env.CLEANUP_INTERVAL_MINUTES |
 const MAX_CONCURRENT_DOWNLOADS = parseInt(process.env.MAX_CONCURRENT_DOWNLOADS || '3');
 const RATE_LIMIT_MINUTES = parseInt(process.env.RATE_LIMIT_MINUTES || '1');
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '3');
+const MAX_POLLING_ERRORS = parseInt(process.env.MAX_POLLING_ERRORS || '5');
+
+// Polling error tracking
+let pollingErrorCount = 0;
+let lastPollingErrorTime = 0;
 
 // Validate configuration
 if (!TELEGRAM_TOKEN) {
@@ -990,9 +995,19 @@ bot.on('message', async (msg) => {
   });
 });
 
-// Error handling for Telegram polling
+// Error handling for Telegram polling with maximum retry limit
 bot.on('polling_error', (error) => {
-  console.error('⚠️  TELEGRAM POLLING ERROR: Connection issue with Telegram servers');
+  const now = Date.now();
+
+  // Reset counter if last error was more than 5 minutes ago (successful connection period)
+  if (now - lastPollingErrorTime > 300000) {
+    pollingErrorCount = 0;
+  }
+
+  pollingErrorCount++;
+  lastPollingErrorTime = now;
+
+  console.error(`⚠️  TELEGRAM POLLING ERROR (${pollingErrorCount}/${MAX_POLLING_ERRORS}): Connection issue with Telegram servers`);
   console.error('');
   console.error('Possible causes:');
   console.error('1. Network connectivity issue - Check your internet connection');
@@ -1001,9 +1016,58 @@ bot.on('polling_error', (error) => {
   console.error('4. Firewall blocking connection - Check firewall rules');
   console.error('5. Rate limiting - Too many requests to Telegram API');
   console.error('');
-  console.error('The bot will automatically retry the connection.');
   console.error('Error details:', error.code || error.message);
   console.error('');
+
+  if (pollingErrorCount >= MAX_POLLING_ERRORS) {
+    console.error('❌ MAXIMUM POLLING ERRORS REACHED');
+    console.error('');
+    console.error(`The bot has encountered ${MAX_POLLING_ERRORS} consecutive polling errors.`);
+    console.error('This usually indicates a persistent connection issue that cannot be automatically resolved.');
+    console.error('');
+    console.error('Please check the following before restarting:');
+    console.error('1. Verify your internet connection is working');
+    console.error('2. Check if Telegram.org is accessible');
+    console.error('3. Verify your TELEGRAM_BOT_TOKEN is correct in .env file');
+    console.error('4. Check firewall rules are not blocking Telegram API');
+    console.error('5. If using a VPN/proxy, try disabling it temporarily');
+    console.error('');
+    console.error('To increase the retry limit, set MAX_POLLING_ERRORS in your .env file');
+    console.error('Example: MAX_POLLING_ERRORS=10');
+    console.error('');
+    console.error('🛑 Shutting down bot to prevent infinite error loop...');
+    console.error('');
+
+    // Graceful shutdown
+    try {
+      bot.stopPolling();
+      console.log('✅ Telegram polling stopped');
+    } catch (stopError) {
+      console.error('⚠️  Error stopping polling:', stopError.message);
+    }
+
+    try {
+      db.close();
+      console.log('✅ Database closed');
+    } catch (dbError) {
+      console.error('⚠️  Error closing database:', dbError.message);
+    }
+
+    try {
+      webServer.close();
+      adminServer.close();
+      console.log('✅ Servers closed');
+    } catch (serverError) {
+      console.error('⚠️  Error closing servers:', serverError.message);
+    }
+
+    console.log('');
+    console.log('Bot has been shut down. Please fix the underlying issue and restart.');
+    process.exit(1);
+  } else {
+    console.error(`The bot will automatically retry. Remaining attempts: ${MAX_POLLING_ERRORS - pollingErrorCount}`);
+    console.error('');
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
