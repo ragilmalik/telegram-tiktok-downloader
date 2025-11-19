@@ -108,7 +108,7 @@ else
         print_warning "Node.js $NODE_VERSION detected (v24+)"
         print_warning "This bot requires Node.js 20 LTS for better-sqlite3 compatibility"
         echo ""
-        read -p "Do you want to install Node.js 20 LTS? (y/n) " -n 1 -r
+        read -p "Do you want to install Node.js 20 LTS? (y/n) " -n 1 -r </dev/tty
         echo ""
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_info "Installing Node.js 20 LTS..."
@@ -124,7 +124,7 @@ else
         print_warning "Node.js $NODE_VERSION detected (older version)"
         print_warning "This bot requires Node.js 18 or 20 LTS"
         echo ""
-        read -p "Do you want to upgrade to Node.js 20 LTS? (y/n) " -n 1 -r
+        read -p "Do you want to upgrade to Node.js 20 LTS? (y/n) " -n 1 -r </dev/tty
         echo ""
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_info "Installing Node.js 20 LTS..."
@@ -180,7 +180,7 @@ if [ ! -f .env ]; then
     print_info "  - TELEGRAM_BOT_TOKEN (get from @BotFather)"
     print_info "  - PUBLIC_URL (your server's public URL)"
     echo ""
-    read -p "Press Enter to open .env file in nano editor..."
+    read -p "Press Enter to open .env file in nano editor..." </dev/tty
     nano .env
     print_success ".env file configured"
 else
@@ -190,7 +190,7 @@ echo ""
 
 # Step 7: Test the bot
 echo "🧪 Step 7: Testing bot configuration..."
-read -p "Do you want to test the bot now? (y/n) " -n 1 -r
+read -p "Do you want to test the bot now? (y/n) " -n 1 -r </dev/tty
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_info "Starting bot in test mode (Press Ctrl+C to stop)..."
@@ -211,7 +211,7 @@ echo ""
 
 # Step 8: Setup systemd service
 echo "🔧 Step 8: Setting up systemd service..."
-read -p "Do you want to set up the bot to run automatically? (y/n) " -n 1 -r
+read -p "Do you want to set up the bot to run automatically? (y/n) " -n 1 -r </dev/tty
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Update service file with correct paths
@@ -227,7 +227,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_info "Service will start automatically on boot"
     echo ""
 
-    read -p "Do you want to start the service now? (y/n) " -n 1 -r
+    read -p "Do you want to start the service now? (y/n) " -n 1 -r </dev/tty
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         sudo systemctl start tiktok-bot.service
@@ -252,7 +252,7 @@ if command -v ufw &> /dev/null && sudo ufw status | grep -q "Status: active"; th
     print_warning "UFW firewall is active"
     PORT=$(grep -oP 'PORT=\K\d+' .env || echo "3000")
 
-    read -p "Do you want to open port $PORT in the firewall? (y/n) " -n 1 -r
+    read -p "Do you want to open port $PORT in the firewall? (y/n) " -n 1 -r </dev/tty
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         sudo ufw allow $PORT/tcp
