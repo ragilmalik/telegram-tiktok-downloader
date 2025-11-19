@@ -125,14 +125,15 @@ curl -o- https://raw.githubusercontent.com/ragilmalik/telegram-tiktok-downloader
 ```
 
 **That's it!** The script will:
-1. ✅ Check and install Node.js (if needed)
-2. ✅ Install yt-dlp (video downloader)
-3. ✅ Clone the repository
-4. ✅ Install dependencies
-5. ✅ Help you create a Telegram bot
+1. ✅ Check and install Git (if needed)
+2. ✅ Clone the repository
+3. ✅ Check and install Node.js (if needed)
+4. ✅ Install yt-dlp (video downloader)
+5. ✅ Install dependencies
 6. ✅ Configure environment variables
-7. ✅ Set up systemd service (auto-start on boot)
-8. ✅ Start the bot
+7. ✅ Test the bot (optional)
+8. ✅ Set up systemd service (auto-start on boot)
+9. ✅ Configure firewall (optional)
 
 **After installation, your bot will be running at:**
 - 🤖 Telegram Bot: Ready to receive links
@@ -269,7 +270,7 @@ brew install yt-dlp
 sudo apt install -y git
 
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/telegram-tiktok-downloader.git
+git clone https://github.com/ragilmalik/telegram-tiktok-downloader.git
 
 # Enter the directory
 cd telegram-tiktok-downloader

@@ -38,16 +38,59 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# Get current directory
-INSTALL_DIR=$(pwd)
+# Get current user
 CURRENT_USER=$(whoami)
+REPO_NAME="telegram-tiktok-downloader"
+REPO_URL="https://github.com/ragilmalik/telegram-tiktok-downloader.git"
 
-print_info "Installation directory: $INSTALL_DIR"
 print_info "Current user: $CURRENT_USER"
 echo ""
 
-# Step 1: Check for Node.js
-echo "📦 Step 1: Checking Node.js installation..."
+# Step 1: Check for Git and clone repository
+echo "📦 Step 1: Checking Git installation..."
+if ! command -v git &> /dev/null; then
+    print_warning "Git is not installed"
+    echo "Installing Git..."
+    sudo apt-get update
+    sudo apt-get install -y git
+    print_success "Git installed successfully"
+else
+    print_success "Git is already installed"
+fi
+
+# Check if we're already in the repository directory
+if [ -f "package.json" ] && [ -f "bot.js" ]; then
+    print_info "Already in repository directory, skipping clone"
+    INSTALL_DIR=$(pwd)
+else
+    print_info "Cloning repository..."
+
+    # Remove existing directory if it exists
+    if [ -d "$REPO_NAME" ]; then
+        print_warning "Directory $REPO_NAME already exists, removing..."
+        rm -rf "$REPO_NAME"
+    fi
+
+    # Clone the repository
+    git clone "$REPO_URL"
+
+    if [ $? -ne 0 ]; then
+        print_error "Failed to clone repository"
+        exit 1
+    fi
+
+    # Enter the directory
+    cd "$REPO_NAME"
+    INSTALL_DIR=$(pwd)
+
+    print_success "Repository cloned successfully"
+fi
+
+print_info "Installation directory: $INSTALL_DIR"
+echo ""
+
+# Step 2: Check for Node.js
+echo "📦 Step 2: Checking Node.js installation..."
 if ! command -v node &> /dev/null; then
     print_warning "Node.js is not installed"
     echo "Installing Node.js via NodeSource..."
@@ -63,8 +106,8 @@ else
 fi
 echo ""
 
-# Step 2: Check for yt-dlp
-echo "📦 Step 2: Checking yt-dlp installation..."
+# Step 3: Check for yt-dlp
+echo "📦 Step 3: Checking yt-dlp installation..."
 if ! command -v yt-dlp &> /dev/null; then
     print_warning "yt-dlp is not installed"
     echo "Installing yt-dlp..."
@@ -79,21 +122,21 @@ else
 fi
 echo ""
 
-# Step 3: Install Node.js dependencies
-echo "📦 Step 3: Installing Node.js dependencies..."
+# Step 4: Install Node.js dependencies
+echo "📦 Step 4: Installing Node.js dependencies..."
 npm install
 print_success "Dependencies installed successfully"
 echo ""
 
-# Step 4: Create necessary directories
-echo "📁 Step 4: Creating directories..."
+# Step 5: Create necessary directories
+echo "📁 Step 5: Creating directories..."
 mkdir -p downloads
 mkdir -p logs
 print_success "Directories created"
 echo ""
 
-# Step 5: Configure environment variables
-echo "⚙️  Step 5: Setting up environment configuration..."
+# Step 6: Configure environment variables
+echo "⚙️  Step 6: Setting up environment configuration..."
 if [ ! -f .env ]; then
     cp .env.example .env
     print_warning "Please edit .env file with your configuration"
@@ -109,8 +152,8 @@ else
 fi
 echo ""
 
-# Step 6: Test the bot
-echo "🧪 Step 6: Testing bot configuration..."
+# Step 7: Test the bot
+echo "🧪 Step 7: Testing bot configuration..."
 read -p "Do you want to test the bot now? (y/n) " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -130,8 +173,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-# Step 7: Setup systemd service
-echo "🔧 Step 7: Setting up systemd service..."
+# Step 8: Setup systemd service
+echo "🔧 Step 8: Setting up systemd service..."
 read -p "Do you want to set up the bot to run automatically? (y/n) " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -167,8 +210,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-# Step 8: Configure firewall (if UFW is active)
-echo "🔥 Step 8: Checking firewall configuration..."
+# Step 9: Configure firewall (if UFW is active)
+echo "🔥 Step 9: Checking firewall configuration..."
 if command -v ufw &> /dev/null && sudo ufw status | grep -q "Status: active"; then
     print_warning "UFW firewall is active"
     PORT=$(grep -oP 'PORT=\K\d+' .env || echo "3000")
