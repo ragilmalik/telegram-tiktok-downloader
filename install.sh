@@ -93,16 +93,52 @@ echo ""
 echo "📦 Step 2: Checking Node.js installation..."
 if ! command -v node &> /dev/null; then
     print_warning "Node.js is not installed"
-    echo "Installing Node.js via NodeSource..."
+    echo "Installing Node.js 20 LTS via NodeSource..."
 
-    # Install Node.js LTS
-    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+    # Install Node.js 20 LTS (required for better-sqlite3 compatibility)
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
 
-    print_success "Node.js installed successfully"
+    print_success "Node.js 20 LTS installed successfully"
 else
     NODE_VERSION=$(node --version)
-    print_success "Node.js is already installed ($NODE_VERSION)"
+    NODE_MAJOR=$(node --version | cut -d. -f1 | sed 's/v//')
+
+    if [ "$NODE_MAJOR" -ge 24 ]; then
+        print_warning "Node.js $NODE_VERSION detected (v24+)"
+        print_warning "This bot requires Node.js 20 LTS for better-sqlite3 compatibility"
+        echo ""
+        read -p "Do you want to install Node.js 20 LTS? (y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Installing Node.js 20 LTS..."
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+            NODE_VERSION=$(node --version)
+            print_success "Node.js 20 LTS installed successfully ($NODE_VERSION)"
+        else
+            print_error "Node.js 20 LTS is required. Installation cannot continue."
+            exit 1
+        fi
+    elif [ "$NODE_MAJOR" -lt 18 ]; then
+        print_warning "Node.js $NODE_VERSION detected (older version)"
+        print_warning "This bot requires Node.js 18 or 20 LTS"
+        echo ""
+        read -p "Do you want to upgrade to Node.js 20 LTS? (y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Installing Node.js 20 LTS..."
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+            NODE_VERSION=$(node --version)
+            print_success "Node.js 20 LTS installed successfully ($NODE_VERSION)"
+        else
+            print_error "Node.js 18 or 20 LTS is required. Installation cannot continue."
+            exit 1
+        fi
+    else
+        print_success "Node.js is already installed ($NODE_VERSION)"
+    fi
 fi
 echo ""
 
