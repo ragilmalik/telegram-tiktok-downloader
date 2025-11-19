@@ -65,6 +65,14 @@ if [ -f "package.json" ] && [ -f "bot.js" ]; then
 else
     print_info "Cloning repository..."
 
+    # Check if directory exists with .env file (existing installation)
+    if [ -d "$REPO_NAME" ] && [ -f "$REPO_NAME/.env" ]; then
+        print_warning "Directory $REPO_NAME already exists with .env file"
+        print_info "Backing up .env file before re-cloning..."
+        cp "$REPO_NAME/.env" "/tmp/.env.backup.$$"
+        RESTORE_ENV=true
+    fi
+
     # Remove existing directory if it exists
     if [ -d "$REPO_NAME" ]; then
         print_warning "Directory $REPO_NAME already exists, removing..."
@@ -82,6 +90,13 @@ else
     # Enter the directory
     cd "$REPO_NAME"
     INSTALL_DIR=$(pwd)
+
+    # Restore backed up .env file
+    if [ "$RESTORE_ENV" = true ] && [ -f "/tmp/.env.backup.$$" ]; then
+        print_info "Restoring backed up .env file..."
+        mv "/tmp/.env.backup.$$" .env
+        print_success "Previous .env file restored"
+    fi
 
     print_success "Repository cloned successfully"
 fi
@@ -181,7 +196,7 @@ if [ ! -f .env ]; then
     print_info "  - PUBLIC_URL (your server's public URL)"
     echo ""
     read -p "Press Enter to open .env file in nano editor..." </dev/tty
-    nano .env
+    nano .env </dev/tty >/dev/tty 2>&1
     print_success ".env file configured"
 else
     print_info ".env file already exists, skipping"

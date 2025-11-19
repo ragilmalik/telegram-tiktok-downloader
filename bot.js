@@ -7,7 +7,7 @@ const { exec, spawn } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
-const { PQueue } = require('p-queue');
+const PQueue = require('p-queue').default;
 const Database = require('better-sqlite3');
 
 // Configuration
