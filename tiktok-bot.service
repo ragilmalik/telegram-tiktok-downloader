@@ -3,24 +3,24 @@ Description=Telegram TikTok Downloader Bot
 Documentation=https://github.com/ragilmalik/telegram-tiktok-downloader
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=/home/user/telegram-tiktok-downloader
-ExecStart=/opt/node22/bin/node /home/user/telegram-tiktok-downloader/bot.js
+User=ragilmalik
+WorkingDirectory=/home/ragilmalik/telegram-tiktok-downloader
+ExecStart=/usr/bin/node /home/ragilmalik/telegram-tiktok-downloader/bot.js
 
 # CRITICAL: Load environment variables from .env file
-EnvironmentFile=/home/user/telegram-tiktok-downloader/.env
+EnvironmentFile=/home/ragilmalik/telegram-tiktok-downloader/.env
 
 # Additional environment
 Environment=NODE_ENV=production
 
-# Restart policy with maximum retry limit to prevent infinite restarts
+# Restart policy
 Restart=on-failure
 RestartSec=10
-StartLimitBurst=5
-StartLimitIntervalSec=300
 
 # Logging - systemd journal (use journalctl to view logs)
 StandardOutput=journal
