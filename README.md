@@ -391,53 +391,27 @@ node bot.js
 
 **What's this?** Makes your bot start automatically when your server boots up, and restart if it crashes! 🔄
 
-**Create the service file:**
+**✨ NEW: Automatic Setup (Recommended)**
+
+We've made this super easy! Just run ONE command:
 
 ```bash
-sudo nano /etc/systemd/system/tiktok-bot.service
+./setup-service.sh
 ```
 
-**Paste this (replace `/home/yourusername` with your actual path):**
+**What it does automatically:**
+- ✅ Detects your username
+- ✅ Finds where Node.js is installed
+- ✅ Gets the correct bot directory path
+- ✅ Generates the service file with all correct paths
+- ✅ Installs and enables the service
+- ✅ Validates your .env file exists
 
-```ini
-[Unit]
-Description=Telegram Multi-Platform Video Downloader Bot
-After=network.target
+**That's it! No manual configuration needed!**
 
-[Service]
-Type=simple
-User=yourusername
-WorkingDirectory=/home/yourusername/telegram-tiktok-downloader
-ExecStart=/usr/bin/node bot.js
-Restart=always
-RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=tiktok-bot
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**⚠️ Important replacements:**
-- Replace `yourusername` with your Linux username (run `whoami` to find out)
-- Replace the WorkingDirectory path with the actual path to your bot
-  - Find it by running: `pwd` in the bot directory
-
-**Save and exit:**
-- Press `Ctrl + X`, then `Y`, then `Enter`
-
-**Enable and start the service:**
+**Start the bot:**
 
 ```bash
-# Reload systemd to recognize the new service
-sudo systemctl daemon-reload
-
-# Enable auto-start on boot
-sudo systemctl enable tiktok-bot
-
-# Start the bot now
 sudo systemctl start tiktok-bot
 
 # Check if it's running
@@ -446,9 +420,29 @@ sudo systemctl status tiktok-bot
 
 **You should see:**
 ```
-● tiktok-bot.service - Telegram Multi-Platform Video Downloader Bot
+● tiktok-bot.service - Telegram TikTok Downloader Bot
    Loaded: loaded
    Active: active (running) since ...
+```
+
+**View live logs:**
+```bash
+sudo journalctl -u tiktok-bot -f
+```
+
+**Common commands:**
+```bash
+# Stop the bot
+sudo systemctl stop tiktok-bot
+
+# Restart the bot
+sudo systemctl restart tiktok-bot
+
+# View last 50 log lines
+sudo journalctl -u tiktok-bot -n 50
+
+# Disable auto-start
+sudo systemctl disable tiktok-bot
 ```
 
 **🎉 Congratulations!** Your bot is now running and will auto-start on reboot!
@@ -743,6 +737,104 @@ sudo journalctl -u tiktok-bot -n 50
 3. ❌ **Bot is blocked**
    - Error: `Failed to send initial status message`
    - Fix: Unblock the bot in Telegram settings
+
+### Systemd service won't start
+
+**Most common issues and solutions:**
+
+#### ❌ Error: "Failed to load environment files: No such file or directory"
+
+**Cause:** The `.env` file doesn't exist
+
+**Solution:**
+```bash
+cd ~/telegram-tiktok-downloader
+
+# Create .env file
+cp .env.example .env
+
+# Edit and add your bot token
+nano .env
+
+# Restart service
+sudo systemctl restart tiktok-bot
+```
+
+#### ❌ Error: "Failed with result 'exit-code'" or status 203/EXEC
+
+**Cause:** Wrong node path or incorrect service file configuration
+
+**Solution: Use the automatic setup script:**
+```bash
+cd ~/telegram-tiktok-downloader
+
+# This automatically detects everything
+./setup-service.sh
+
+# Start the bot
+sudo systemctl start tiktok-bot
+```
+
+**What the script does:**
+- ✅ Detects your username automatically
+- ✅ Finds where Node.js is installed (`which node`)
+- ✅ Gets the correct bot directory path
+- ✅ Generates service file with all correct paths
+- ✅ Checks if .env file exists
+
+#### ❌ Error: "Unknown key name 'StartLimitIntervalSec'"
+
+**Cause:** Wrong systemd directive in wrong section
+
+**Solution:** The setup script fixes this automatically. Run:
+```bash
+./setup-service.sh
+```
+
+#### ❌ Bot keeps restarting infinitely
+
+**Check logs:**
+```bash
+sudo journalctl -u tiktok-bot -n 100
+```
+
+**Common causes:**
+
+1. **Invalid bot token:**
+   ```bash
+   # The bot will show: "Invalid bot token" in logs
+   # Fix: Update your token in .env
+   nano .env
+   sudo systemctl restart tiktok-bot
+   ```
+
+2. **Network issues:**
+   ```bash
+   # Test if you can reach Telegram API
+   curl -I https://api.telegram.org
+
+   # If fails, check firewall/VPN
+   ```
+
+3. **Another instance running:**
+   ```bash
+   # Check for other bot processes
+   ps aux | grep bot.js
+
+   # Kill them
+   pkill -f bot.js
+
+   # Then restart service
+   sudo systemctl restart tiktok-bot
+   ```
+
+**View real-time logs:**
+```bash
+# Watch logs as they happen
+sudo journalctl -u tiktok-bot -f
+
+# Press Ctrl+C to exit
+```
 
 ### Node.js compatibility issues
 
