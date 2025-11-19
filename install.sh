@@ -205,27 +205,52 @@ echo ""
 
 # Step 7: Test the bot
 echo "🧪 Step 7: Testing bot configuration..."
-read -p "Do you want to test the bot now? (y/n) " -n 1 -r </dev/tty
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Starting bot in test mode (Press Ctrl+C to stop)..."
-    npm start &
-    BOT_PID=$!
-    sleep 5
 
-    if ps -p $BOT_PID > /dev/null; then
-        print_success "Bot is running successfully!"
-        kill $BOT_PID
-        wait $BOT_PID 2>/dev/null
+# Check if .env is configured before testing
+if [ -f .env ]; then
+    BOT_TOKEN=$(grep -oP '^TELEGRAM_BOT_TOKEN=\K.*' .env)
+    if [ -z "$BOT_TOKEN" ] || [ "$BOT_TOKEN" = "your_telegram_bot_token_here" ]; then
+        print_warning "Bot token is not configured. Skipping test."
+        print_info "Configure your .env file first, then run: npm start"
     else
-        print_error "Bot failed to start. Please check your configuration."
-        exit 1
+        read -p "Do you want to test the bot now? (y/n) " -n 1 -r </dev/tty
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Starting bot in test mode (Press Ctrl+C to stop)..."
+            npm start &
+            BOT_PID=$!
+            sleep 5
+
+            if ps -p $BOT_PID > /dev/null; then
+                print_success "Bot is running successfully!"
+                kill $BOT_PID
+                wait $BOT_PID 2>/dev/null
+            else
+                print_error "Bot failed to start. Please check your configuration."
+                print_info "Check error log: cat $INSTALL_DIR/logs/error.log"
+            fi
+        fi
     fi
+else
+    print_warning ".env file not found. Skipping test."
 fi
 echo ""
 
 # Step 8: Setup systemd service
 echo "🔧 Step 8: Setting up systemd service..."
+
+# Validate .env configuration before setting up service
+if [ -f .env ]; then
+    BOT_TOKEN=$(grep -oP '^TELEGRAM_BOT_TOKEN=\K.*' .env)
+    if [ -z "$BOT_TOKEN" ] || [ "$BOT_TOKEN" = "your_telegram_bot_token_here" ]; then
+        print_error "TELEGRAM_BOT_TOKEN is not configured in .env file!"
+        print_warning "Please set your bot token before setting up the service"
+        print_info "Edit .env and set TELEGRAM_BOT_TOKEN=your_actual_token"
+        print_info "Then run: sudo systemctl start tiktok-bot"
+        echo ""
+    fi
+fi
+
 read -p "Do you want to set up the bot to run automatically? (y/n) " -n 1 -r </dev/tty
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -253,7 +278,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_info "Check status with: sudo systemctl status tiktok-bot"
         else
             print_error "Service failed to start"
-            print_info "Check logs with: sudo journalctl -u tiktok-bot -f"
+            print_info "Check systemd logs: sudo journalctl -u tiktok-bot -n 50"
+            print_info "Check bot error log: cat $INSTALL_DIR/logs/error.log"
+            print_info "Check bot output log: cat $INSTALL_DIR/logs/bot.log"
         fi
     fi
 
@@ -265,13 +292,15 @@ echo ""
 echo "🔥 Step 9: Checking firewall configuration..."
 if command -v ufw &> /dev/null && sudo ufw status | grep -q "Status: active"; then
     print_warning "UFW firewall is active"
-    PORT=$(grep -oP 'PORT=\K\d+' .env || echo "3000")
+    PORT=$(grep -oP '^PORT=\K\d+' .env || echo "3000")
+    ADMIN_PORT=$(grep -oP '^ADMIN_PORT=\K\d+' .env || echo "5000")
 
-    read -p "Do you want to open port $PORT in the firewall? (y/n) " -n 1 -r </dev/tty
+    read -p "Do you want to open ports $PORT and $ADMIN_PORT in the firewall? (y/n) " -n 1 -r </dev/tty
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         sudo ufw allow $PORT/tcp
-        print_success "Port $PORT opened in firewall"
+        sudo ufw allow $ADMIN_PORT/tcp
+        print_success "Ports $PORT and $ADMIN_PORT opened in firewall"
     fi
 else
     print_info "UFW firewall not active or not installed"
