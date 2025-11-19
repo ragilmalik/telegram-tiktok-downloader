@@ -14,12 +14,16 @@ Add your bot token from @BotFather:
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 ```
 
+Save and exit (Ctrl+O, Enter, Ctrl+X in nano).
+
 ### 2. Choose your startup method
 
-#### Option A: Run with systemd (Ubuntu/Debian with systemd)
+#### Option A: Run with systemd (Ubuntu/Debian with systemd) - RECOMMENDED
+
+The setup script **automatically detects** your username, node path, and bot directory!
 
 ```bash
-# Install the service
+# Install the service (auto-configures everything)
 ./setup-service.sh
 
 # Start the bot
@@ -31,6 +35,15 @@ sudo systemctl status tiktok-bot
 # View logs
 sudo journalctl -u tiktok-bot -f
 ```
+
+**What setup-service.sh does:**
+- Automatically detects your username
+- Finds where Node.js is installed
+- Gets the bot directory path
+- Generates the service file with correct paths
+- Installs and enables the service
+
+**No manual configuration needed!**
 
 #### Option B: Run without systemd (Docker/Container/No systemd)
 
